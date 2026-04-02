@@ -2,6 +2,8 @@
 
 AI-powered design research chat. Head of Product Design persona backed by Claude Haiku.
 
+> **Before making changes to core features, read [docs/INDEX.md](docs/INDEX.md)** — find architectural context, bug history, and design patterns in one place.
+
 ## Setup
 
 1. Copy `.env.local.example` to `.env.local` and fill in your values
