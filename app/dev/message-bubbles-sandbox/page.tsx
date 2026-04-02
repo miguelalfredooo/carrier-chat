@@ -28,7 +28,7 @@ export default function MessageBubblesSandboxPage() {
               backgroundColor: tokens.colors.black,
               color: tokens.colors.white,
               padding: tokens.spacing.md,
-              borderRadius: tokens.radius.md,
+              borderRadius: tokens.radius.lg,
               fontSize: '14px',
               lineHeight: '1.5',
             }}
@@ -49,7 +49,7 @@ export default function MessageBubblesSandboxPage() {
               backgroundColor: tokens.colors.white,
               color: tokens.colors.black,
               padding: tokens.spacing.md,
-              borderRadius: tokens.radius.md,
+              borderRadius: tokens.radius.lg,
               fontSize: '14px',
               lineHeight: '1.6',
             }}

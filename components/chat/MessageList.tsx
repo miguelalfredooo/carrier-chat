@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage } from '@/lib/chat-types';
 import { stripBucketBlock } from '@/lib/bucket-parser';
+import { designTokens as tokens } from '@/lib/design-tokens';
 import { ErrorMessage } from './ErrorMessage';
 import { EmptyState } from './EmptyState';
 import { InsightCard } from './InsightCard';
@@ -19,7 +20,6 @@ interface MessageListProps {
   onSendSuggestion?: (suggestion: string) => void;
   isRetrying?: boolean;
   hasConversation?: boolean;
-  currentPhase?: 'pm' | 'research' | 'designer';
 }
 
 /**
@@ -56,20 +56,6 @@ function parseSuggestions(content: string): { visibleContent: string; suggestion
   return { visibleContent, suggestions };
 }
 
-const AGENT_CONFIG: Record<string, { label: string; labelClass: string }> = {
-  pm: {
-    label: 'Product',
-    labelClass: 'text-violet-300/70',
-  },
-  research: {
-    label: 'Research',
-    labelClass: 'text-sky-300/70',
-  },
-  designer: {
-    label: 'Design',
-    labelClass: 'text-emerald-300/70',
-  },
-};
 
 export function MessageList({
   messages,
@@ -79,7 +65,6 @@ export function MessageList({
   onSendSuggestion,
   isRetrying = false,
   hasConversation = true,
-  currentPhase,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -93,7 +78,8 @@ export function MessageList({
   return (
     <div
       ref={scrollRef}
-      className="flex flex-col flex-1 overflow-y-auto p-6 gap-6"
+      className="flex flex-col flex-1 overflow-y-auto py-6 gap-6 mx-auto w-full"
+      style={{ maxWidth: '600px' }}
     >
       {messages.length === 0 && !isLoading && (
         <EmptyState type={hasConversation ? 'no-messages' : 'no-conversation'} />
@@ -122,10 +108,22 @@ export function MessageList({
 
         return (
           <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'}`}>
-            <div className={isUserMessage ? 'max-w-md' : 'max-w-2xl'}>
+            <div>
               {isUserMessage ? (
                 <div>
-                  <div className="bg-black text-white rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap break-words">
+                  <div
+                    className="whitespace-pre-wrap break-words"
+                    style={{
+                      backgroundColor: tokens.colors.black,
+                      color: tokens.colors.white,
+                      padding: tokens.spacing.md,
+                      borderRadius: tokens.radius.lg,
+                      fontSize: '14px',
+                      lineHeight: '1.5',
+                    }}
+                    data-component="MessageBubble"
+                    data-role="user"
+                  >
                     {message.content}
                   </div>
                   {message.metadata?.attachment_name && (
@@ -138,25 +136,29 @@ export function MessageList({
                 </div>
               ) : (
                 <div>
-                  {/* Agent label for non-user messages */}
-                  {AGENT_CONFIG[message.role] && (
-                    <span className={`text-[10px] font-medium tracking-wide uppercase mb-1 pl-1 ${AGENT_CONFIG[message.role].labelClass}`}>
-                      {AGENT_CONFIG[message.role].label}
-                    </span>
-                  )}
-
-                  <div className={`bg-white text-black rounded-2xl px-4 text-sm ${isLoading && message.role === currentPhase && !visibleContent ? 'py-3' : 'py-2'}`}>
-                    {isLoading && message.role === currentPhase && !visibleContent ? (
+                  <div
+                    style={{
+                      backgroundColor: tokens.colors.white,
+                      color: tokens.colors.black,
+                      padding: tokens.spacing.md,
+                      borderRadius: tokens.radius.lg,
+                      fontSize: '14px',
+                      lineHeight: '1.6',
+                    }}
+                    data-component="MessageBubble"
+                    data-role="agent"
+                  >
+                    {isLoading && !isUserMessage && !visibleContent ? (
                       <ThinkingIndicator />
                     ) : (
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          p: ({ children }) => <p className="m-0">{children}</p>,
-                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                          li: ({ children }) => <li className="m-0">{children}</li>,
-                          ul: ({ children }) => <ul className="list-disc pl-5 m-0">{children}</ul>,
-                          ol: ({ children }) => <ol className="list-decimal pl-5 m-0">{children}</ol>,
+                          p: ({ children }) => <p style={{ margin: 0, marginBottom: '8px' }}>{children}</p>,
+                          strong: ({ children }) => <strong style={{ fontWeight: '600' }}>{children}</strong>,
+                          li: ({ children }) => <li style={{ margin: 0 }}>{children}</li>,
+                          ul: ({ children }) => <ul style={{ listStyleType: 'disc', paddingLeft: '20px', margin: 0 }}>{children}</ul>,
+                          ol: ({ children }) => <ol style={{ listStyleType: 'decimal', paddingLeft: '20px', margin: 0 }}>{children}</ol>,
                           blockquote: ({ children }) => <InsightCard>{children}</InsightCard>,
                         } as Record<string, React.ComponentType<any>>}
                       >

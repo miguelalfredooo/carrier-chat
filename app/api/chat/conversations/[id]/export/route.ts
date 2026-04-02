@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { ChatMessage, AgentFeedback } from '@/lib/chat-types';
+import { ChatMessage } from '@/lib/chat-types';
 
 import { supabase } from '@/lib/supabase-client';
 
@@ -16,9 +16,7 @@ const _unused = createClient(
 function formatConversationAsMarkdown(
   title: string,
   createdAt: string,
-  messages: ChatMessage[],
-  feedback: AgentFeedback[],
-  gates: Record<string, boolean>
+  messages: ChatMessage[]
 ): string {
   const date = new Date(createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -37,31 +35,9 @@ function formatConversationAsMarkdown(
     for (const msg of messages) {
       if (msg.role === 'user') {
         markdown += `**User:** ${msg.content}\n\n`;
-      } else if (msg.role === 'pm') {
-        markdown += `**🎯 PM:** ${msg.content}\n\n`;
-      } else if (msg.role === 'research') {
-        markdown += `**🔍 Research:** ${msg.content}\n\n`;
-      } else if (msg.role === 'designer') {
-        markdown += `**💡 Designer:** ${msg.content}\n\n`;
+      } else if (msg.role === 'assistant') {
+        markdown += `**Head of Product Design:** ${msg.content}\n\n`;
       }
-    }
-  }
-
-  // Gates section
-  markdown += '### Gates\n\n';
-  markdown += `- PM Gate: ${gates.pm_gate ? '✅' : '❌'}\n`;
-  markdown += `- Research Gate: ${gates.research_gate ? '✅' : '❌'}\n`;
-  markdown += `- Designer Gate: ${gates.designer_gate ? '✅' : '❌'}\n\n`;
-
-  // Feedback section
-  markdown += '### Feedback\n\n';
-
-  if (feedback.length === 0) {
-    markdown += '(No feedback yet)\n\n';
-  } else {
-    for (const fb of feedback) {
-      markdown += `- ${fb.category} - ${fb.observation}\n`;
-      markdown += `  Suggestion: ${fb.suggestion}\n\n`;
     }
   }
 
@@ -112,49 +88,11 @@ export async function GET(
 
     if (messagesError) throw messagesError;
 
-    // Fetch all crew runs with feedback for this conversation
-    const { data: crewRuns, error: crewRunsError } = await supabase
-      .from('chat_crew_runs')
-      .select('gates_passed, agent_feedback')
-      .eq('conversation_id', id)
-      .order('created_at', { ascending: false });
-
-    if (crewRunsError) throw crewRunsError;
-
-    // Get the latest gates and flatten feedback from all crew runs
-    let gates = { pm_gate: false, research_gate: false, designer_gate: false };
-    let feedback: AgentFeedback[] = [];
-
-    if (crewRuns && crewRuns.length > 0) {
-      const latestRun = crewRuns[0];
-      if (latestRun.gates_passed) {
-        gates = latestRun.gates_passed;
-      }
-      // Flatten feedback from all runs
-      feedback = crewRuns.flatMap(run => run.agent_feedback || []);
-    }
-
-    // Get feedback actions to filter out dismissed items
-    const { data: feedbackActions, error: actionsError } = await supabase
-      .from('chat_feedback_actions')
-      .select('feedback_id, action')
-      .eq('conversation_id', id);
-
-    if (actionsError) throw actionsError;
-
-    // Build a map of feedback_id -> action for quick lookup
-    const actionMap = new Map((feedbackActions || []).map(a => [a.feedback_id, a.action]));
-
-    // Filter feedback to exclude dismissed items
-    const visibleFeedback = feedback.filter(f => actionMap.get(f.id) !== 'dismiss');
-
     // Format as markdown
     const markdown = formatConversationAsMarkdown(
       conversation.title,
       conversation.created_at,
-      messages || [],
-      visibleFeedback,
-      gates
+      messages || []
     );
 
     // Return as markdown file

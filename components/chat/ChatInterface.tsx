@@ -24,9 +24,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
 
   // Loading and status state
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<'running' | 'complete' | 'blocked'>('complete');
-  const [phase, setPhase] = useState<string>('');
-  const [blockedAt, setBlockedAt] = useState<'pm' | 'research' | 'designer' | undefined>(undefined);
+  const [status, setStatus] = useState<'running' | 'complete'>('complete');
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [lastMessageContent, setLastMessageContent] = useState<string>('');
@@ -159,41 +157,22 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
       metadata: attachment ? { attachment_name: attachment.name } : undefined,
     };
 
-    // Three empty agent messages that will be streamed to sequentially
-    const pmMessage: ChatMessage = {
-      id: `temp-pm-${Date.now()}`,
+    // Single assistant message that will be streamed to
+    const assistantMessage: ChatMessage = {
+      id: `temp-assistant-${Date.now()}`,
       conversation_id: convId as string,
-      role: 'pm',
+      role: 'assistant',
       content: '',
       created_at: new Date().toISOString(),
       sequence: messages.length + 1,
     };
 
-    const researchMessage: ChatMessage = {
-      id: `temp-research-${Date.now() + 1}`,
-      conversation_id: convId as string,
-      role: 'research',
-      content: '',
-      created_at: new Date().toISOString(),
-      sequence: messages.length + 2,
-    };
-
-    const designerMessage: ChatMessage = {
-      id: `temp-designer-${Date.now() + 2}`,
-      conversation_id: convId as string,
-      role: 'designer',
-      content: '',
-      created_at: new Date().toISOString(),
-      sequence: messages.length + 3,
-    };
-
-    // Add all messages immediately - user and three agents wait for stream
-    setMessages((prev) => [...prev, userMessage, pmMessage, researchMessage, designerMessage]);
+    // Add user and assistant messages - assistant content will be streamed in
+    setMessages((prev) => [...prev, userMessage, assistantMessage]);
 
     try {
-      // Local variable to track which agent's placeholder to stream to
-      // Must be a let, not useState, so it's synchronously updated when agent_start events arrive
-      let activeAgentId: string = pmMessage.id;
+      // Track the assistant message ID for streaming
+      let activeMessageId: string = assistantMessage.id;
 
       // POST message to API with streaming
       const response = await authenticatedFetch('/api/chat/messages', {
@@ -235,28 +214,13 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
               try {
                 const data = JSON.parse(dataStr);
 
-                // Handle agent start events
-                if (data.type === 'agent_start') {
-                  const agent = data.agent as 'pm' | 'research' | 'designer';
-                  setPhase(agent);
-                  activeAgentId = agent === 'pm' ? pmMessage.id
-                    : agent === 'research' ? researchMessage.id
-                    : designerMessage.id;
-                }
-
-                // Handle agent blocked events
-                if (data.type === 'agent_blocked') {
-                  setBlockedAt(data.agent);
-                  setStatus('blocked');
-                }
-
                 // Handle content chunks
                 if (data.type === 'content_block_delta' && data.delta?.text) {
                   const chunk = data.delta.text;
-                  // Append each chunk to the active agent message in real-time
+                  // Append each chunk to the assistant message in real-time
                   setMessages((prev) =>
                     prev.map((msg) =>
-                      msg.id === activeAgentId
+                      msg.id === activeMessageId
                         ? { ...msg, content: msg.content + chunk }
                         : msg
                     )
@@ -269,10 +233,8 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
           }
         }
 
-        // Only set complete status if not blocked
-        if (blockedAt === undefined) {
-          setStatus('complete');
-        }
+        // Set complete status
+        setStatus('complete');
 
         // CRITICAL: Do NOT call loadMessages() or setCurrentConversationId() here
         // The messages are already correct in local state from optimistic update + streaming.
@@ -283,7 +245,6 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      setStatus('blocked');
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message. Please try again.';
       setError(errorMessage);
     } finally {
@@ -425,7 +386,6 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
             onSendSuggestion={(suggestion) => sendMessage(suggestion)}
             isRetrying={isRetrying}
             hasConversation={!!currentConversationId}
-            currentPhase={phase as 'pm' | 'research' | 'designer' | undefined}
           />
 
           {/* Project Buckets — above input, accumulates as conversation progresses */}
