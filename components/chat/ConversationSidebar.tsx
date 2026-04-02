@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MessageSquare, Archive, Home, Search } from 'lucide-react';
+import { MessageSquare, Archive, Home, Search, Bird } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 type ConversationMode = 'pipeline' | 'conversational';
@@ -71,7 +71,7 @@ export function ConversationSidebar({
       <div className="flex-shrink-0 p-4 border-b border-zinc-800">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-            <span className="text-white text-xs font-bold">C</span>
+            <Bird className="w-5 h-5 text-white" />
           </div>
           <h2 className="text-sm font-semibold text-white">Carrier</h2>
         </div>

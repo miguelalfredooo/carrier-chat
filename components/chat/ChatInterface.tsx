@@ -357,7 +357,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
   const currentConversation = conversations.find((c) => c.id === currentConversationId);
 
   return (
-    <div className="flex h-screen w-full bg-white">
+    <div className="flex h-screen w-full bg-gray-100">
       {/* Sidebar */}
       <ConversationSidebar
         conversations={conversations}
@@ -368,66 +368,69 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
       />
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1">
-        {/* Header with Archive and Export Buttons */}
-        <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4 flex items-center justify-between">
-          <div>
+      <div className="flex flex-col flex-1 p-4">
+        {/* Chat Container - White box on gray background */}
+        <div className="flex flex-col flex-1 border border-gray-300 rounded-lg bg-white overflow-hidden">
+          {/* Header with Archive and Export Buttons */}
+          <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4 flex items-center justify-between">
+            <div>
+              {currentConversation && (
+                <h1 className="text-lg font-semibold text-gray-900">
+                  {currentConversation.title}
+                </h1>
+              )}
+            </div>
             {currentConversation && (
-              <h1 className="text-lg font-semibold text-gray-900">
-                {currentConversation.title}
-              </h1>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleExportConversation(currentConversation.id)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                  title="Export conversation as markdown"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+                <button
+                  onClick={() => handleArchiveConversation(currentConversation.id)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                  title={currentConversation.archived ? 'Unarchive conversation' : 'Archive conversation'}
+                >
+                  {currentConversation.archived ? (
+                    <>
+                      <ArchiveX className="w-4 h-4" />
+                      Unarchive
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="w-4 h-4" />
+                      Archive
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
-          {currentConversation && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleExportConversation(currentConversation.id)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-                title="Export conversation as markdown"
-              >
-                <Download className="w-4 h-4" />
-                Export
-              </button>
-              <button
-                onClick={() => handleArchiveConversation(currentConversation.id)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-                title={currentConversation.archived ? 'Unarchive conversation' : 'Archive conversation'}
-              >
-                {currentConversation.archived ? (
-                  <>
-                    <ArchiveX className="w-4 h-4" />
-                    Unarchive
-                  </>
-                ) : (
-                  <>
-                    <Archive className="w-4 h-4" />
-                    Archive
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
 
-        {/* Messages */}
-        <MessageList
-          messages={messages}
-          isLoading={isLoading}
-          status={status}
-          phase={phase}
-          blockedAt={blockedAt}
-          error={error}
-          onRetry={handleRetry}
-          isRetrying={isRetrying}
-          hasConversation={!!currentConversationId}
-        />
-
-        {/* Chat Input */}
-        <div className="flex-shrink-0 border-t border-gray-200 bg-white">
-          <ChatInput
-            onSend={sendMessage}
+          {/* Messages */}
+          <MessageList
+            messages={messages}
             isLoading={isLoading}
+            status={status}
+            phase={phase}
+            blockedAt={blockedAt}
+            error={error}
+            onRetry={handleRetry}
+            isRetrying={isRetrying}
+            hasConversation={!!currentConversationId}
           />
+
+          {/* Chat Input */}
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+            <ChatInput
+              onSend={sendMessage}
+              isLoading={isLoading}
+            />
+          </div>
         </div>
       </div>
 

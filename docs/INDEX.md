@@ -6,6 +6,16 @@ When something breaks, start here. This page maps every operational and architec
 
 ---
 
+## ⚙️ Local Development Setup
+
+| Document | Purpose |
+|---|---|
+| [LOCAL_SETUP.md](LOCAL_SETUP.md) | direnv configuration, environment variables, auth setup, troubleshooting |
+
+**Read this first** if you're getting auth conflicts or environment variable issues.
+
+---
+
 ## 🔴 Critical Fixes & Known Issues
 
 | Document | Purpose | Last Updated |
