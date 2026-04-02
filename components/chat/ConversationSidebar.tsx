@@ -66,23 +66,23 @@ export function ConversationSidebar({
   const filteredConversations = activeTab === 'active' ? activeConversations : archivedConversations;
 
   return (
-    <div className="flex flex-col h-full w-64 border-r border-gray-300 bg-gray-900">
+    <div className="flex flex-col h-full w-64 border-r border-gray-300 bg-gray-100">
       {/* Logo Header */}
-      <div className="flex-shrink-0 px-4 py-4 border-b border-gray-700">
+      <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-8 h-8 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Bird className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Bird className="w-5 h-5 text-gray-900" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-white truncate">Carrier</h2>
-            <p className="text-xs text-gray-400 truncate">Explore, chat, ship</p>
+            <h2 className="text-sm font-semibold text-gray-900 truncate">Carrier</h2>
+            <p className="text-xs text-gray-600 truncate">Explore, chat, ship</p>
           </div>
         </div>
       </div>
 
       {/* Home Button */}
       <div className="flex-shrink-0 px-3 py-3">
-        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
+        <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white text-gray-900 text-sm font-medium border border-gray-200 hover:bg-gray-50 transition-colors">
           <Home size={16} />
           Home
         </button>
@@ -97,14 +97,14 @@ export function ConversationSidebar({
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-600 focus:border-gray-600"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300"
           />
         </div>
       </div>
 
       {/* Conversations Header */}
-      <div className="flex-shrink-0 px-4 py-3 mt-2 border-t border-gray-700">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Conversations</h3>
+      <div className="flex-shrink-0 px-4 py-3 mt-2 border-t border-gray-200">
+        <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Conversations</h3>
       </div>
 
       {/* Conversation list */}
@@ -114,24 +114,24 @@ export function ConversationSidebar({
             <p className="text-xs text-gray-500 text-center">No conversations yet</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-800">
+          <div className="divide-y divide-gray-200">
             {filteredConversations.map((conversation) => (
               <div
                 key={conversation.id}
                 onClick={() => {
                   onSelect(conversation.id);
                 }}
-                className={`flex items-start justify-between p-3 cursor-pointer hover:bg-gray-800 transition-colors ${
-                  selectedId === conversation.id ? 'bg-gray-800' : ''
+                className={`flex items-start justify-between p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
+                  selectedId === conversation.id ? 'bg-gray-50' : ''
                 }`}
               >
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <MessageSquare className="w-4 h-4 mt-1 flex-shrink-0 text-gray-500" />
+                  <MessageSquare className="w-4 h-4 mt-1 flex-shrink-0 text-gray-400" />
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm text-gray-100 truncate">
+                    <div className="font-medium text-sm text-gray-900 truncate">
                       {conversation.title}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-600 mt-1">
                       {formatDate(conversation.updated_at)}
                     </div>
                   </div>
@@ -142,10 +142,10 @@ export function ConversationSidebar({
                       e.stopPropagation();
                       onArchive(conversation.id);
                     }}
-                    className="p-1 hover:bg-gray-700 rounded ml-2 flex-shrink-0 transition-colors"
+                    className="p-1 hover:bg-gray-200 rounded ml-2 flex-shrink-0 transition-colors"
                     title="Archive conversation"
                   >
-                    <Archive className="w-4 h-4 text-gray-500 hover:text-gray-300" />
+                    <Archive className="w-4 h-4 text-gray-400 hover:text-gray-600" />
                   </button>
                 )}
               </div>
