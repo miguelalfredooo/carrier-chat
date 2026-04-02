@@ -82,7 +82,7 @@ export function ConversationSidebar({
 
       {/* Home Button */}
       <div className="flex-shrink-0 py-3">
-        <button className="w-full flex items-center gap-2 pr-3 h-8 rounded-lg bg-white text-black text-sm font-medium hover:bg-gray-100 transition-colors">
+        <button className="w-full flex items-center gap-2 pr-3 h-8 rounded-lg bg-white/30 text-black text-sm font-medium hover:bg-white/40 transition-colors">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0">
             <Home className="w-4 h-4 text-black" />
           </div>
