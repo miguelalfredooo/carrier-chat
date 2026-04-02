@@ -36,14 +36,16 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
   }, []);
 
   // Load messages when conversation changes
+  // CRITICAL: Don't load messages while sending — the optimistic update is in progress
+  // and loadMessages would clear it, causing the flicker when auto-creating conversations
   useEffect(() => {
     console.log('currentConversationId changed:', currentConversationId);
-    if (currentConversationId) {
+    if (currentConversationId && !isLoading) {
       loadMessages(currentConversationId);
-    } else {
+    } else if (!currentConversationId) {
       setMessages([]);
     }
-  }, [currentConversationId]);
+  }, [currentConversationId, isLoading]);
 
   // Fetch conversations from API
   const loadConversations = async () => {
