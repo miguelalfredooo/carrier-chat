@@ -130,10 +130,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Call Anthropic API directly for fast research synthesis
-    const client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
+    const modelProvider = process.env.MODEL_PROVIDER || 'anthropic';
 
     // SYSTEM PROMPT RULES — DO NOT SIMPLIFY
     // - Model must NOT use ## headers (causes layout issues in chat)
@@ -152,6 +149,18 @@ Use formatting when it genuinely helps clarity:
 
 Never use headers (##) in chat responses. Keep responses under 200 words unless the question genuinely needs more depth. End with a concrete recommendation or a single sharp question.`;
 
+    const encoder = new TextEncoder();
+    let fullResponse = '';
+
+    if (modelProvider === 'ollama') {
+      return streamOllama(apiMessages, systemPrompt, conversation_id, content, sequence, attachment, encoder);
+    }
+
+    // Original Anthropic path - completely unchanged
+    const client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
     // Stream response back to client
     const stream = await client.messages.stream({
       model: 'claude-haiku-4-5-20251001',
@@ -159,9 +168,6 @@ Never use headers (##) in chat responses. Keep responses under 200 words unless 
       system: systemPrompt,
       messages: apiMessages,
     });
-
-    const encoder = new TextEncoder();
-    let fullResponse = '';
 
     const readableStream = new ReadableStream({
       async start(controller) {
@@ -209,6 +215,112 @@ Never use headers (##) in chat responses. Keep responses under 200 words unless 
       { status: 500 }
     );
   }
+}
+
+// Helper function to stream from Ollama API
+async function streamOllama(
+  messages: MessageParam[],
+  systemPrompt: string,
+  conversationId: string,
+  userContent: string,
+  sequence: number,
+  attachment: { name: string; type: string; data: string } | undefined,
+  encoder: TextEncoder
+) {
+  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2';
+
+  // Convert messages to Ollama format
+  const ollamaMessages = messages.map(msg => ({
+    role: msg.role,
+    content: typeof msg.content === 'string' ? msg.content : msg.content.map(block => {
+      if (typeof block === 'object' && 'text' in block) {
+        return (block as { text: string }).text;
+      }
+      return '';
+    }).join('\n'),
+  }));
+
+  let fullResponse = '';
+
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        const response = await fetch(`${ollamaBaseUrl}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: ollamaModel,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              ...ollamaMessages,
+            ],
+            stream: true,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body from Ollama API');
+        }
+
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += new TextDecoder().decode(value);
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+
+            try {
+              const chunk = JSON.parse(line);
+              if (chunk.message?.content) {
+                const text = chunk.message.content;
+                fullResponse += text;
+
+                // Send to client as SSE in same format as Anthropic
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text } })}\n\n`)
+                );
+              }
+            } catch (e) {
+              console.error('Error parsing Ollama chunk:', e);
+            }
+          }
+        }
+
+        // Persist messages after streaming completes
+        if (fullResponse) {
+          await persistMessages(conversationId, userContent, fullResponse, sequence, attachment);
+        }
+
+        // Send completion signal
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      } catch (error) {
+        console.error('Ollama stream error:', error);
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(readableStream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
 }
 
 // Helper function to persist messages to database
