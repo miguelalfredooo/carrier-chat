@@ -298,19 +298,20 @@
   display: none;
 }
 
-/* Custom scrollbar styling */
+/* Custom scrollbar styling — 4px thin scrollbar */
 ::-webkit-scrollbar {
-  width: 2px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: white;
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #f0f0f0;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 /* ── Design Ops ── */
