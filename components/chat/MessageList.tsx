@@ -4,10 +4,12 @@ import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage } from '@/lib/chat-types';
+import { stripBucketBlock } from '@/lib/bucket-parser';
 import { ErrorMessage } from './ErrorMessage';
 import { EmptyState } from './EmptyState';
 import { InsightCard } from './InsightCard';
 import { SuggestionChips } from './SuggestionChips';
+import { ThinkingIndicator } from './ThinkingIndicator';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -33,14 +35,17 @@ interface MessageListProps {
 const SUGGESTION_DELIMITER = '\n---suggestions\n';
 
 function parseSuggestions(content: string): { visibleContent: string; suggestions: string[] } {
-  const delimiterIndex = content.indexOf(SUGGESTION_DELIMITER);
+  // Strip bucket data first (consumed by ChatInterface via bucket-parser)
+  const withoutBuckets = stripBucketBlock(content);
+
+  const delimiterIndex = withoutBuckets.indexOf(SUGGESTION_DELIMITER);
 
   if (delimiterIndex === -1) {
-    return { visibleContent: content, suggestions: [] };
+    return { visibleContent: withoutBuckets, suggestions: [] };
   }
 
-  const visibleContent = content.slice(0, delimiterIndex).trimEnd();
-  const suggestionsBlock = content.slice(delimiterIndex + SUGGESTION_DELIMITER.length);
+  const visibleContent = withoutBuckets.slice(0, delimiterIndex).trimEnd();
+  const suggestionsBlock = withoutBuckets.slice(delimiterIndex + SUGGESTION_DELIMITER.length);
 
   const suggestions = suggestionsBlock
     .split('\n')
@@ -146,6 +151,9 @@ export function MessageList({
           </div>
         );
       })}
+
+      {/* Thinking indicator — shows while agent is processing */}
+      {isLoading && <ThinkingIndicator />}
 
       {error && onRetry && (
         <ErrorMessage message={error} onRetry={onRetry} isRetrying={isRetrying} />
