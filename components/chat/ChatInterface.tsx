@@ -36,8 +36,12 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
   }, []);
 
   // Load messages when conversation changes
-  // CRITICAL: Don't load messages while sending — the optimistic update is in progress
-  // and loadMessages would clear it, causing the flicker when auto-creating conversations
+  // CRITICAL GUARD: The !isLoading check prevents the chat flicker bug (April 2026)
+  // When auto-creating a conversation, currentConversationId changes and triggers this effect.
+  // If we don't guard with !isLoading, loadMessages fetches from DB while sendMessage is
+  // adding optimistic messages. The race: if loadMessages wins, setMessages(data.messages)
+  // clears the optimistic state with empty DB results, then optimistic gets added back = flicker.
+  // By skipping loadMessages during isLoading, we let optimistic updates complete uninterrupted.
   useEffect(() => {
     console.log('currentConversationId changed:', currentConversationId);
     if (currentConversationId && !isLoading) {
@@ -227,6 +231,13 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
 
         setStatus('complete');
         setBlockedAt(undefined);
+
+        // CRITICAL: Do NOT call loadMessages() or setCurrentConversationId() here
+        // The messages are already correct in local state from optimistic update + streaming.
+        // Reloading from DB causes the entire message list to re-render, creating a visible
+        // flicker/disappear-reappear flash. DB persistence happens in background via the
+        // API endpoint — no need to synchronize. Local state IS the source of truth.
+        // See lib/CHAT_PATTERNS.md and docs/CHAT_FLICKER_FIX.md for details.
       }
     } catch (error) {
       console.error('Error sending message:', error);
