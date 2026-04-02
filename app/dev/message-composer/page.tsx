@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChatInput } from '@/components/chat/ChatInput';
+import { MessageComposer } from '@/components/chat/MessageComposer';
 
 export default function MessageComposerPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +16,7 @@ export default function MessageComposerPage() {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <ChatInput onSend={handleSend} isLoading={isLoading} />
+        <MessageComposer onSend={handleSend} isLoading={isLoading} />
       </div>
     </div>
   );

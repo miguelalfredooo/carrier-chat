@@ -7,7 +7,7 @@ import { authenticatedFetch } from '@/lib/auth-utils';
 import { buildBucketsFromMessages } from '@/lib/bucket-parser';
 import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
-import { ChatInput } from './ChatInput';
+import { MessageComposer } from './MessageComposer';
 import { ProjectBuckets } from './ProjectBuckets';
 
 interface ChatInterfaceProps {
@@ -436,13 +436,13 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
           />
 
           {/* Chat Input */}
-          <div className="flex-shrink-0 -mx-4 -mb-4">
-            <ChatInput
-              onSend={sendMessage}
-              isLoading={isLoading}
-              depth={depth}
-              onDepthChange={setDepth}
-            />
+          <div className="flex-shrink-0 w-full flex justify-center px-4 pb-4">
+            <div style={{ width: '100%', maxWidth: '600px' }}>
+              <MessageComposer
+                onSend={sendMessage}
+                isLoading={isLoading}
+              />
+            </div>
           </div>
         </div>
       </div>
