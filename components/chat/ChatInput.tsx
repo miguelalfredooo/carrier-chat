@@ -106,50 +106,48 @@ export function ChatInput({
         <div className="text-sm text-red-600">{error}</div>
       )}
 
-      <div className="relative">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a design question..."
+      <textarea
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Ask a design question..."
+        disabled={isLoading}
+        rows={1}
+        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
+        style={{
+          minHeight: '40px',
+          maxHeight: '120px',
+          overflowY: 'auto',
+        }}
+      />
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={ACCEPTED_TYPES.join(',')}
+        onChange={handleFileSelect}
+        className="hidden"
+        aria-label="Attach image"
+      />
+
+      {/* Icons row: attachment left, submit right */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
-          rows={1}
-          className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 pr-20 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
-          style={{
-            minHeight: '40px',
-            maxHeight: '120px',
-            overflowY: 'auto',
-          }}
-        />
+          className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
+        >
+          <Paperclip size={16} />
+        </button>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ACCEPTED_TYPES.join(',')}
-          onChange={handleFileSelect}
-          className="hidden"
-          aria-label="Attach image"
-        />
-
-        {/* Icons at bottom right inside input */}
-        <div className="absolute bottom-2 right-2 flex items-center gap-1">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
-          >
-            <Paperclip size={16} />
-          </button>
-
-          <button
-            onClick={handleSend}
-            disabled={isLoading || !input.trim()}
-            className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Send size={16} />
-          </button>
-        </div>
+        <button
+          onClick={handleSend}
+          disabled={isLoading || !input.trim()}
+          className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <Send size={16} />
+        </button>
       </div>
     </div>
   );
