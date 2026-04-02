@@ -121,20 +121,24 @@ export function MessageList({
                 </div>
               ) : (
                 <div>
-                  <div className="bg-white text-black rounded-2xl px-4 py-2 text-sm">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        p: ({ children }) => <p className="m-0">{children}</p>,
-                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                        li: ({ children }) => <li className="m-0">{children}</li>,
-                        ul: ({ children }) => <ul className="list-disc pl-5 m-0">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal pl-5 m-0">{children}</ol>,
-                        blockquote: ({ children }) => <InsightCard>{children}</InsightCard>,
-                      } as Record<string, React.ComponentType<any>>}
-                    >
-                      {visibleContent}
-                    </ReactMarkdown>
+                  <div className={`bg-white text-black rounded-2xl px-4 text-sm ${isLastAssistantMessage && isLoading && !visibleContent ? 'py-3' : 'py-2'}`}>
+                    {isLastAssistantMessage && isLoading && !visibleContent ? (
+                      <ThinkingIndicator />
+                    ) : (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => <p className="m-0">{children}</p>,
+                          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                          li: ({ children }) => <li className="m-0">{children}</li>,
+                          ul: ({ children }) => <ul className="list-disc pl-5 m-0">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-5 m-0">{children}</ol>,
+                          blockquote: ({ children }) => <InsightCard>{children}</InsightCard>,
+                        } as Record<string, React.ComponentType<any>>}
+                      >
+                        {visibleContent}
+                      </ReactMarkdown>
+                    )}
                   </div>
 
                   {/* Suggestion chips — only on last assistant message, after streaming completes */}
@@ -151,9 +155,6 @@ export function MessageList({
           </div>
         );
       })}
-
-      {/* Thinking indicator — shows while agent is processing */}
-      {isLoading && <ThinkingIndicator />}
 
       {error && onRetry && (
         <ErrorMessage message={error} onRetry={onRetry} isRetrying={isRetrying} />
