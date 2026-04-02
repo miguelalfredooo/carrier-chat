@@ -373,7 +373,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
       />
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1 p-4">
+      <div className="flex flex-col flex-1 p-4 pb-0">
         {/* Chat Container */}
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Messages */}
