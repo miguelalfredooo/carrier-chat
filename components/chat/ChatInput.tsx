@@ -114,11 +114,12 @@ export function ChatInput({
           placeholder="Ask a design question..."
           disabled={isLoading}
           rows={1}
-          className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 pb-10 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
+          className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 pt-4 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
           style={{
             minHeight: '40px',
             maxHeight: '120px',
             overflowY: 'auto',
+            paddingBottom: '56px',
           }}
         />
 
@@ -131,8 +132,8 @@ export function ChatInput({
           aria-label="Attach image"
         />
 
-        {/* Icons inside field at bottom */}
-        <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+        {/* Icons inside field at bottom with padding */}
+        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
