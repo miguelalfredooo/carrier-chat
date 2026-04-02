@@ -1,14 +1,6 @@
-import { supabase } from "@/lib/supabase-client";
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase-client';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-
-import { supabase } from '@/lib/supabase-client';
-
-const _unused = createClient(
-  
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export async function GET(
   request: Request,

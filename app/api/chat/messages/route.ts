@@ -1,28 +1,11 @@
-import { supabase } from "@/lib/supabase-client";
-import { supabase } from "@/lib/supabase-client";
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase-client';
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { ChatMessage } from '@/lib/chat-types';
 import Anthropic from '@anthropic-ai/sdk';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages';
 
-// Allow larger request bodies for image attachments (base64 encoded)
 export const maxDuration = 60;
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
-
-import { supabase } from '@/lib/supabase-client';
-
-const _unused = createClient(
-  
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 const CREW_SERVICE_URL = 'http://localhost:8000';
 const CREW_TIMEOUT_MS = 15000; // 15 second timeout

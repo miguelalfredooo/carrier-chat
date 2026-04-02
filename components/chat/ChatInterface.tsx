@@ -142,7 +142,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
     // Fix 1 & 3: Add user message and empty assistant placeholder to state
     const userMessage: ChatMessage = {
       id: `temp-user-${Date.now()}`,
-      conversation_id: convId,
+      conversation_id: convId as string,
       role: 'user',
       content,
       created_at: new Date().toISOString(),
@@ -153,7 +153,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
     // Empty assistant message that will be streamed to
     const assistantMessage: ChatMessage = {
       id: `temp-assistant-${Date.now()}`,
-      conversation_id: convId,
+      conversation_id: convId as string,
       role: 'research',
       content: '',
       created_at: new Date().toISOString(),
