@@ -226,8 +226,10 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
         setStatus('complete');
         setBlockedAt(undefined);
 
-        // Wait briefly for DB persistence before triggering loadMessages to avoid race
-        setTimeout(() => setCurrentConversationId(convId), 100);
+        // CRITICAL: Call loadMessages directly instead of setCurrentConversationId to avoid race condition.
+        // setCurrentConversationId triggers useEffect which calls loadMessages, but DB persistence timing
+        // can cause stale messages to load. Direct call ensures fresh data after persistence.
+        setTimeout(() => loadMessages(convId), 100);
       }
     } catch (error) {
       console.error('Error sending message:', error);
