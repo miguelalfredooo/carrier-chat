@@ -5,7 +5,15 @@ import { ChatMessage } from '@/lib/chat-types';
 import Anthropic from '@anthropic-ai/sdk';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages';
 
+// Allow larger request bodies for image attachments (base64 encoded)
 export const maxDuration = 60;
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
 
 const CREW_SERVICE_URL = 'http://localhost:8000';
 const CREW_TIMEOUT_MS = 15000; // 15 second timeout
