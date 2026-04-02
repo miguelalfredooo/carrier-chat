@@ -88,10 +88,10 @@ export function ChatInput({
   };
 
   return (
-    <div className="flex flex-col gap-3 bg-white p-0">
+    <div className="flex flex-col gap-3 p-0">
       {attachment && (
-        <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 w-fit">
-          <span className="text-sm text-gray-700">📎 {attachment.name}</span>
+        <div className="flex items-center gap-2 bg-gray-700 rounded-full px-3 py-1 w-fit">
+          <span className="text-sm text-gray-300">📎 {attachment.name}</span>
           <button
             onClick={handleRemoveAttachment}
             className="text-gray-500 hover:text-gray-700"
@@ -103,7 +103,7 @@ export function ChatInput({
       )}
 
       {error && (
-        <div className="text-sm text-red-600">{error}</div>
+        <div className="text-sm text-red-400">{error}</div>
       )}
 
       <div className="relative">
@@ -114,7 +114,7 @@ export function ChatInput({
           placeholder="Ask a design question..."
           disabled={isLoading}
           rows={1}
-          className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 pt-4 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
+          className="w-full rounded-lg border border-gray-600 bg-gray-800 px-4 pt-4 text-sm text-white outline-none placeholder:text-gray-400 disabled:bg-gray-700 disabled:text-gray-500 focus:bg-gray-750 focus:border-gray-500 focus:ring-1 focus:ring-gray-600 resize-none"
           style={{
             minHeight: '40px',
             maxHeight: '120px',
@@ -137,7 +137,7 @@ export function ChatInput({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
-            className="pointer-events-auto flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="pointer-events-auto flex items-center justify-center w-10 h-10 text-gray-500 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
           >
             <Paperclip size={16} />
@@ -146,7 +146,7 @@ export function ChatInput({
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className="pointer-events-auto flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="pointer-events-auto flex items-center justify-center w-10 h-10 text-gray-500 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Send size={16} />
           </button>

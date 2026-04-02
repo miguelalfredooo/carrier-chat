@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Archive, ArchiveX, Download } from 'lucide-react';
 import { ChatConversation, ChatMessage, CrewResponse, ConversationMode } from '@/lib/chat-types';
 import { authenticatedFetch } from '@/lib/auth-utils';
+import { buildBucketsFromMessages } from '@/lib/bucket-parser';
 import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
+import { ProjectBuckets } from './ProjectBuckets';
 
 interface ChatInterfaceProps {
   conversationId?: string | null;
@@ -356,8 +358,11 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
   // Get current conversation
   const currentConversation = conversations.find((c) => c.id === currentConversationId);
 
+  // Compute project buckets from all messages (pure, no side effects)
+  const buckets = useMemo(() => buildBucketsFromMessages(messages), [messages]);
+
   return (
-    <div className="flex h-screen w-full bg-gray-100">
+    <div className="flex h-screen w-full bg-gradient-to-br from-slate-950 via-blue-700 to-pink-600">
       {/* Sidebar */}
       <ConversationSidebar
         conversations={conversations}
@@ -369,63 +374,28 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
 
       {/* Main Content */}
       <div className="flex flex-col flex-1 p-4">
-        {/* Chat Container - White box on gray background */}
-        <div className="flex flex-col flex-1 border border-gray-300 rounded-lg bg-white overflow-hidden">
-          {/* Header with Archive and Export Buttons */}
-          <div className="flex-shrink-0 border-b border-gray-200 bg-white px-6 py-4 flex items-center justify-between">
-            <div>
-              {currentConversation && (
-                <h1 className="text-lg font-semibold text-gray-900">
-                  {currentConversation.title}
-                </h1>
-              )}
-            </div>
-            {currentConversation && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleExportConversation(currentConversation.id)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-                  title="Export conversation as markdown"
-                >
-                  <Download className="w-4 h-4" />
-                  Export
-                </button>
-                <button
-                  onClick={() => handleArchiveConversation(currentConversation.id)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
-                  title={currentConversation.archived ? 'Unarchive conversation' : 'Archive conversation'}
-                >
-                  {currentConversation.archived ? (
-                    <>
-                      <ArchiveX className="w-4 h-4" />
-                      Unarchive
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="w-4 h-4" />
-                      Archive
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-          </div>
-
+        {/* Chat Container */}
+        <div className="flex flex-col flex-1 overflow-hidden">
           {/* Messages */}
           <MessageList
             messages={messages}
             isLoading={isLoading}
-            status={status}
-            phase={phase}
-            blockedAt={blockedAt}
             error={error}
             onRetry={handleRetry}
+            onSendSuggestion={(suggestion) => sendMessage(suggestion)}
             isRetrying={isRetrying}
             hasConversation={!!currentConversationId}
           />
 
+          {/* Project Buckets — above input, accumulates as conversation progresses */}
+          <ProjectBuckets
+            buckets={buckets}
+            onDiveIn={(prompt) => sendMessage(prompt)}
+            disabled={isLoading}
+          />
+
           {/* Chat Input */}
-          <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+          <div className="flex-shrink-0">
             <ChatInput
               onSend={sendMessage}
               isLoading={isLoading}
