@@ -52,23 +52,20 @@ export function ChatInput({
 
     setError(null);
 
-    // Check file type
     if (!ACCEPTED_TYPES.includes(file.type)) {
       setError(`Unsupported file type. Accepted: JPEG, PNG, GIF, WebP`);
       return;
     }
 
-    // Check file size
     if (file.size > MAX_FILE_SIZE) {
       setError(`File exceeds 5MB limit (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
       return;
     }
 
-    // Convert to base64
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      const base64Data = base64.split(',')[1]; // Remove data:image/...;base64, prefix
+      const base64Data = base64.split(',')[1];
       setAttachment({
         name: file.name,
         type: file.type,
@@ -80,7 +77,6 @@ export function ChatInput({
     };
     reader.readAsDataURL(file);
 
-    // Reset input so selecting the same file again triggers onChange
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -93,10 +89,9 @@ export function ChatInput({
 
   return (
     <div className="flex flex-col gap-3 border-t border-gray-200 bg-white p-4">
-      {/* File preview chip */}
       {attachment && (
         <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 w-fit">
-          <span className="text-sm text-gray-700">{attachment.name}</span>
+          <span className="text-sm text-gray-700">📎 {attachment.name}</span>
           <button
             onClick={handleRemoveAttachment}
             className="text-gray-500 hover:text-gray-700"
@@ -107,14 +102,11 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Error message */}
       {error && (
         <div className="text-sm text-red-600">{error}</div>
       )}
 
-      {/* Input and send button */}
       <div className="flex gap-2">
-        {/* Paperclip button */}
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
@@ -124,7 +116,6 @@ export function ChatInput({
           <Paperclip size={16} />
         </button>
 
-        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
@@ -134,12 +125,11 @@ export function ChatInput({
           aria-label="Attach image"
         />
 
-        {/* Text input */}
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a design question... (Shift+Enter for newline, Ctrl+Enter to send)"
+          placeholder="Ask a design question..."
           disabled={isLoading}
           rows={1}
           className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 resize-none"
@@ -150,7 +140,6 @@ export function ChatInput({
           }}
         />
 
-        {/* Send button */}
         <Button
           onClick={handleSend}
           disabled={isLoading || !input.trim()}
@@ -158,7 +147,6 @@ export function ChatInput({
           className="gap-2 self-end"
         >
           <Send size={16} />
-          Send
         </Button>
       </div>
     </div>
