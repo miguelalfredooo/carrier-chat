@@ -9,6 +9,7 @@ import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
 import { MessageComposer } from './MessageComposer';
 import { ProjectBuckets } from './ProjectBuckets';
+import { useRef } from 'react';
 
 interface ChatInterfaceProps {
   conversationId?: string | null;
@@ -18,6 +19,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
   // Sidebar and conversation state
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId || null);
+  const justAutoCreatedRef = useRef<string | null>(null);
 
   // Message state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -37,19 +39,24 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
   }, []);
 
   // Load messages when conversation changes
-  // Load messages when conversation changes (sidebar selection or initial load)
-  // Do NOT include isLoading in dependency array — it causes a flicker bug:
-  // When isLoading transitions false, the effect re-runs and calls loadMessages(),
-  // overwriting the correct local state (messages from streaming) with a fresh DB fetch.
-  // Local state is the source of truth during send — DB persistence happens in background.
-  // See docs/CHAT_FLICKER_FIX.md for details.
+  // CRITICAL GUARD: The !isLoading check prevents the chat flicker bug (April 2026)
+  // When auto-creating a conversation, currentConversationId changes and triggers this effect.
+  // If we don't guard with !isLoading, loadMessages fetches from DB while sendMessage is
+  // adding optimistic messages — the race clears optimistic state and causes flicker.
+  // See docs/CHAT_FLICKER_FIX.md and lib/CHAT_PATTERNS.md for details.
   useEffect(() => {
-    if (currentConversationId) {
-      loadMessages(currentConversationId);
-    } else {
+    if (currentConversationId && !isLoading) {
+      // Skip loadMessages if we just auto-created this conversation
+      // (messages are already correct in state from optimistic + streaming)
+      if (justAutoCreatedRef.current !== currentConversationId) {
+        loadMessages(currentConversationId);
+      } else {
+        justAutoCreatedRef.current = null;
+      }
+    } else if (!currentConversationId) {
       setMessages([]);
     }
-  }, [currentConversationId]);
+  }, [currentConversationId, isLoading]);
 
   // Fetch conversations from API
   const loadConversations = async () => {
@@ -98,6 +105,9 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
       const newConversation = await response.json();
       setConversations((prev) => [newConversation, ...prev]);
       setCurrentConversationId(newConversation.id);
+      // Mark this conversation as just-created so we don't reload from DB yet
+      // (messages are already correct in local state from optimistic + streaming)
+      justAutoCreatedRef.current = newConversation.id;
     } catch (error) {
       console.error('Error creating conversation:', error);
     }
