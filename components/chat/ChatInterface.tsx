@@ -114,7 +114,6 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
     setIsLoading(true);
     setStatus('running');
     setError(null);
-    setBlockedAt(undefined);
 
     let convId = currentConversationId;
 
