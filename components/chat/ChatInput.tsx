@@ -88,7 +88,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="flex flex-col gap-3 border-t border-gray-200 bg-white p-4">
+    <div className="flex flex-col gap-3 bg-white p-4">
       {attachment && (
         <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 w-fit">
           <span className="text-sm text-gray-700">📎 {attachment.name}</span>
@@ -110,7 +110,7 @@ export function ChatInput({
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isLoading}
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 transition-colors"
+          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-gray-50 text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 transition-colors"
           title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
         >
           <Paperclip size={16} />
@@ -132,7 +132,7 @@ export function ChatInput({
           placeholder="Ask a design question..."
           disabled={isLoading}
           rows={1}
-          className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 resize-none"
+          className="flex-1 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
           style={{
             minHeight: '40px',
             maxHeight: '120px',
