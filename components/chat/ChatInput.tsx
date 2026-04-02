@@ -13,6 +13,8 @@ interface AttachmentFile {
 interface ChatInputProps {
   onSend: (message: string, attachment?: AttachmentFile) => void;
   isLoading: boolean;
+  depth?: 'quick' | 'balanced' | 'in-depth';
+  onDepthChange?: (depth: 'quick' | 'balanced' | 'in-depth') => void;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -21,6 +23,8 @@ const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 export function ChatInput({
   onSend,
   isLoading,
+  depth = 'balanced',
+  onDepthChange,
 }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [attachment, setAttachment] = useState<AttachmentFile | null>(null);
@@ -132,16 +136,34 @@ export function ChatInput({
           aria-label="Attach image"
         />
 
-        {/* Icons inside field at bottom with padding */}
+        {/* Icons and controls inside field at bottom with padding */}
         <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className="pointer-events-auto flex items-center justify-center w-10 h-10 text-gray-500 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
-          >
-            <Paperclip size={16} />
-          </button>
+          <div className="pointer-events-auto flex items-center gap-1">
+            {/* Depth toggle buttons */}
+            {(['quick', 'balanced', 'in-depth'] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => onDepthChange?.(d)}
+                disabled={isLoading}
+                className={`text-[11px] px-2 py-1 rounded transition-colors ${
+                  depth === d ? 'text-white' : 'text-white/40'
+                } disabled:opacity-50 disabled:cursor-not-allowed hover:text-white/60`}
+                title={`${d.charAt(0).toUpperCase() + d.slice(1)} analysis depth`}
+              >
+                {d}
+              </button>
+            ))}
+
+            {/* Attachment button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className="pointer-events-auto flex items-center justify-center w-10 h-10 text-gray-500 hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
+            >
+              <Paperclip size={16} />
+            </button>
+          </div>
 
           <button
             onClick={handleSend}

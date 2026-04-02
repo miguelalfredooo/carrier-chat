@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { ChatMessage } from '@/lib/chat-types';
 import Anthropic from '@anthropic-ai/sdk';
 import { MessageParam } from '@anthropic-ai/sdk/resources/messages';
+import { getPmPrompt, getResearchPrompt, getDesignerPrompt, Depth } from '@/lib/agent-prompts';
 
 // Allow larger request bodies for image attachments (base64 encoded)
 export const maxDuration = 60;
@@ -31,11 +32,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const { conversation_id, content, target_agent, previous_context, attachment } = await request.json();
+    const { conversation_id, content, attachment, depth = 'balanced' } = await request.json();
 
     if (!conversation_id || !content) {
       return NextResponse.json(
         { error: 'Missing conversation_id or content' },
+        { status: 400 }
+      );
+    }
+
+    if (!['quick', 'balanced', 'in-depth'].includes(depth)) {
+      return NextResponse.json(
+        { error: 'Invalid depth level' },
         { status: 400 }
       );
     }
@@ -97,11 +105,11 @@ export async function POST(request: Request) {
       .order('sequence', { ascending: true })
       .limit(10);
 
-    // Format history for Anthropic API (map 'research' role to 'assistant')
+    // Format history for Anthropic API (map pm/research/designer roles to 'assistant')
     const apiMessages: MessageParam[] = [];
     if (historyMessages && historyMessages.length > 0) {
       for (const msg of historyMessages) {
-        const role = msg.role === 'research' ? 'assistant' : (msg.role as 'user' | 'assistant');
+        const role = ['pm', 'research', 'designer'].includes(msg.role) ? 'assistant' : (msg.role as 'user' | 'assistant');
         apiMessages.push({
           role,
           content: msg.content,
@@ -139,119 +147,14 @@ export async function POST(request: Request) {
     }
 
     const modelProvider = process.env.MODEL_PROVIDER || 'anthropic';
-
-    // SYSTEM PROMPT RULES — DO NOT SIMPLIFY
-    // - Model must NOT use ## headers (causes layout issues in chat)
-    // - Model CAN use **bold**, bullet points, numbered lists
-    // - Bold only at start of phrases, not inline mid-sentence (prevents streaming reflow)
-    // - Plain prose for short conversational answers
-    // - Blockquote cards: > **Insight:** / > **Recommendation:** / > **Risk:** render as styled cards
-    // - Buckets block: JSON after ---buckets delimiter, parsed into project knowledge cards
-    // - Suggestions block: appended after ---suggestions delimiter, rendered as stacked options
-    // - Order matters: content → ---buckets → ---suggestions
-    const systemPrompt = `You are a Head of Product Design embedded in a product team. You think across product management, research, and design simultaneously — and synthesize all three in every response.
-
-When answering, lead with the most important insight. Be direct and specific. Speak like a senior design leader talking to a peer, not a report generator.
-
-Use formatting when it genuinely helps clarity:
-- **Bold** only the opening phrase of a paragraph, never bold words in the middle of a sentence
-- Numbered lists when sequence or priority matters
-- Bullet points when listing 3 or more parallel items
-- Plain prose for conversational exchanges or short answers
-
-You have three special callout types for key findings. Use blockquotes with bold prefixes — one per response at most:
-- > **Insight:** for research findings or data patterns worth highlighting
-- > **Recommendation:** for your top suggestion or design direction
-- > **Risk:** for concerns, blockers, or tradeoffs to watch
-
-Never use headers (##) in chat responses. Keep responses under 200 words unless the question genuinely needs more depth. End with a concrete recommendation or a single sharp question.
-
-STRUCTURED OUTPUT — append these two blocks after every response, in this exact order.
-
-1. BUCKETS — Categorize the key takeaway from this response into a project knowledge area. Emit 1-3 bucket updates as a JSON array. Use consistent IDs across messages so insights accumulate. Example:
-
----buckets
-[{"id":"user-research","label":"User Research","insight":"Onboarding drop-off is 40% at step 3 — unclear value prop"},{"id":"strategy","label":"Product Strategy","insight":"Need to validate whether freemium or trial converts better"}]
-
-Good bucket IDs: user-research, strategy, visual-design, design-system, interaction-design, usability, validation, information-architecture, content-strategy, accessibility. Reuse IDs when the topic fits an existing bucket.
-
-2. SUGGESTIONS — Offer exactly 3 next steps. These become the user's next message to you, so write them as directives that make you respond with momentum, guidance, and clear instruction.
-
-Good examples:
-- "Walk me through setting up the test plan for this"
-- "Break down the highest-risk assumptions here"
-- "Give me a framework for prioritizing these trade-offs"
-
-Bad examples (don't do these):
-- "How should I think about this?" (too vague, no momentum)
-- "What are some considerations?" (produces a list, not guidance)
-
----suggestions
-- First option
-- Second option
-- Third option
-
-Keep each under 60 characters. Vary the direction: craft/execution, strategy/framing, research/validation.`;
-
     const encoder = new TextEncoder();
-    let fullResponse = '';
 
     if (modelProvider === 'ollama') {
-      return streamOllama(apiMessages, systemPrompt, conversation_id, content, sequence, attachment, encoder);
+      return streamOllamaHandoff(apiMessages, conversation_id, content, sequence, attachment, encoder, depth as Depth);
     }
 
-    // Original Anthropic path - completely unchanged
-    const client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
-    // Stream response back to client
-    const stream = await client.messages.stream({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
-      system: systemPrompt,
-      messages: apiMessages,
-    });
-
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        try {
-          // Iterate through stream events
-          for await (const event of stream) {
-            // Handle content block deltas
-            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-              const text = event.delta.text || '';
-              fullResponse += text;
-
-              // Send to client as SSE
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text } })}\n\n`)
-              );
-            }
-          }
-
-          // Persist messages after streaming completes
-          if (fullResponse) {
-            await persistMessages(conversation_id, content, fullResponse, sequence, attachment);
-          }
-
-          // Send completion signal
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        } catch (error) {
-          console.error('Stream error:', error);
-          controller.error(error);
-        }
-      },
-    });
-
-    return new Response(readableStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    });
+    // Run three-agent handoff pipeline with Anthropic
+    return streamHandoffPipeline(apiMessages, conversation_id, content, sequence, attachment, encoder, depth as Depth);
   } catch (error) {
     console.error('POST /api/chat/messages error:', error);
     return NextResponse.json(
@@ -261,98 +164,153 @@ Keep each under 60 characters. Vary the direction: craft/execution, strategy/fra
   }
 }
 
-// Helper function to stream from Ollama API
-async function streamOllama(
-  messages: MessageParam[],
-  systemPrompt: string,
+// Three-agent handoff pipeline with Anthropic
+async function streamHandoffPipeline(
+  baseMessages: MessageParam[],
   conversationId: string,
   userContent: string,
   sequence: number,
   attachment: { name: string; type: string; data: string } | undefined,
-  encoder: TextEncoder
+  encoder: TextEncoder,
+  depth: Depth
 ) {
-  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-  const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2';
-
-  // Convert messages to Ollama format
-  const ollamaMessages = messages.map(msg => ({
-    role: msg.role,
-    content: typeof msg.content === 'string' ? msg.content : msg.content.map(block => {
-      if (typeof block === 'object' && 'text' in block) {
-        return (block as { text: string }).text;
-      }
-      return '';
-    }).join('\n'),
-  }));
-
-  let fullResponse = '';
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  });
 
   const readableStream = new ReadableStream({
     async start(controller) {
       try {
-        const response = await fetch(`${ollamaBaseUrl}/api/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: ollamaModel,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              ...ollamaMessages,
-            ],
-            stream: true,
-          }),
+        let pmOutput = '';
+        let researchOutput = '';
+        let designerOutput = '';
+        let blockedAt: 'pm' | 'research' | 'designer' | undefined;
+
+        // PM Agent
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_start', agent: 'pm' })}\n\n`));
+
+        const pmStream = await client.messages.stream({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1000,
+          system: getPmPrompt(depth),
+          messages: baseMessages,
         });
 
-        if (!response.ok) {
-          throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+        for await (const event of pmStream) {
+          if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+            const text = event.delta.text || '';
+            pmOutput += text;
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text }, agent: 'pm' })}\n\n`)
+            );
+          }
         }
 
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error('No response body from Ollama API');
-        }
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_complete', agent: 'pm' })}\n\n`));
 
-        let buffer = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        // Check PM gate
+        if (pmOutput.includes('BLOCKED:')) {
+          const reason = pmOutput.match(/BLOCKED:\s*(.+?)(?:\n|$)/)?.[1] || 'Gate check failed';
+          blockedAt = 'pm';
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'agent_blocked', agent: 'pm', reason })}\n\n`)
+          );
+        } else {
+          // Research Agent
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_start', agent: 'research' })}\n\n`));
 
-          buffer += new TextDecoder().decode(value);
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+          const researchMessages = [
+            ...baseMessages,
+            { role: 'user' as const, content: userContent },
+            { role: 'assistant' as const, content: pmOutput },
+          ];
 
-          for (const line of lines) {
-            if (!line.trim()) continue;
+          const researchStream = await client.messages.stream({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 1200,
+            system: getResearchPrompt(pmOutput, depth),
+            messages: researchMessages,
+          });
 
-            try {
-              const chunk = JSON.parse(line);
-              if (chunk.message?.content) {
-                const text = chunk.message.content;
-                fullResponse += text;
+          for await (const event of researchStream) {
+            if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+              const text = event.delta.text || '';
+              researchOutput += text;
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text }, agent: 'research' })}\n\n`)
+              );
+            }
+          }
 
-                // Send to client as SSE in same format as Anthropic
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_complete', agent: 'research' })}\n\n`));
+
+          // Check Research gate
+          if (researchOutput.includes('BLOCKED:')) {
+            const reason = researchOutput.match(/BLOCKED:\s*(.+?)(?:\n|$)/)?.[1] || 'Gate check failed';
+            blockedAt = 'research';
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'agent_blocked', agent: 'research', reason })}\n\n`)
+            );
+          } else {
+            // Designer Agent
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_start', agent: 'designer' })}\n\n`));
+
+            const designerMessages = [
+              ...baseMessages,
+              { role: 'user' as const, content: userContent },
+              { role: 'assistant' as const, content: pmOutput },
+              { role: 'user' as const, content: 'Continue with research analysis' },
+              { role: 'assistant' as const, content: researchOutput },
+            ];
+
+            const designerStream = await client.messages.stream({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 1500,
+              system: getDesignerPrompt(pmOutput, researchOutput, depth),
+              messages: designerMessages,
+            });
+
+            for await (const event of designerStream) {
+              if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+                const text = event.delta.text || '';
+                designerOutput += text;
                 controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text } })}\n\n`)
+                  encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text }, agent: 'designer' })}\n\n`)
                 );
               }
-            } catch (e) {
-              console.error('Error parsing Ollama chunk:', e);
+            }
+
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_complete', agent: 'designer' })}\n\n`));
+
+            // Check Designer gate
+            if (designerOutput.includes('BLOCKED:')) {
+              const reason = designerOutput.match(/BLOCKED:\s*(.+?)(?:\n|$)/)?.[1] || 'Gate check failed';
+              blockedAt = 'designer';
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'agent_blocked', agent: 'designer', reason })}\n\n`)
+              );
             }
           }
         }
 
-        // Persist messages after streaming completes
-        if (fullResponse) {
-          await persistMessages(conversationId, userContent, fullResponse, sequence, attachment);
-        }
+        // Persist all messages
+        await persistAllMessages(
+          conversationId,
+          userContent,
+          pmOutput,
+          researchOutput,
+          designerOutput,
+          sequence,
+          attachment,
+          blockedAt,
+          depth
+        );
 
         // Send completion signal
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       } catch (error) {
-        console.error('Ollama stream error:', error);
+        console.error('Handoff pipeline error:', error);
         controller.error(error);
       }
     },
@@ -367,40 +325,257 @@ async function streamOllama(
   });
 }
 
-// Helper function to persist messages to database
-async function persistMessages(
+// Three-agent handoff pipeline with Ollama
+async function streamOllamaHandoff(
+  baseMessages: MessageParam[],
   conversationId: string,
   userContent: string,
-  researchContent: string,
   sequence: number,
-  attachment?: { name: string; type: string; data: string }
+  attachment: { name: string; type: string; data: string } | undefined,
+  encoder: TextEncoder,
+  depth: Depth
+) {
+  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+  const ollamaModel = process.env.OLLAMA_MODEL || 'llama3.2';
+
+  const convertToOllamaMessages = (messages: MessageParam[]) => {
+    return messages.map(msg => ({
+      role: msg.role,
+      content: typeof msg.content === 'string' ? msg.content : msg.content.map(block => {
+        if (typeof block === 'object' && 'text' in block) {
+          return (block as { text: string }).text;
+        }
+        return '';
+      }).join('\n'),
+    }));
+  };
+
+  const streamOllamaAgent = async (
+    systemPrompt: string,
+    messages: MessageParam[]
+  ): Promise<string> => {
+    const ollamaMessages = convertToOllamaMessages(messages);
+    let output = '';
+
+    const response = await fetch(`${ollamaBaseUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: ollamaModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...ollamaMessages,
+        ],
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body from Ollama API');
+    }
+
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += new TextDecoder().decode(value);
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        try {
+          const chunk = JSON.parse(line);
+          if (chunk.message?.content) {
+            output += chunk.message.content;
+          }
+        } catch (e) {
+          console.error('Error parsing Ollama chunk:', e);
+        }
+      }
+    }
+
+    return output;
+  };
+
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        let pmOutput = '';
+        let researchOutput = '';
+        let designerOutput = '';
+        let blockedAt: 'pm' | 'research' | 'designer' | undefined;
+
+        // PM Agent
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_start', agent: 'pm' })}\n\n`));
+        pmOutput = await streamOllamaAgent(getPmPrompt(depth), baseMessages);
+        pmOutput.split('').forEach(char => {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text: char }, agent: 'pm' })}\n\n`)
+          );
+        });
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_complete', agent: 'pm' })}\n\n`));
+
+        if (pmOutput.includes('BLOCKED:')) {
+          const reason = pmOutput.match(/BLOCKED:\s*(.+?)(?:\n|$)/)?.[1] || 'Gate check failed';
+          blockedAt = 'pm';
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'agent_blocked', agent: 'pm', reason })}\n\n`)
+          );
+        } else {
+          // Research Agent
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_start', agent: 'research' })}\n\n`));
+          const researchMessages = [
+            ...baseMessages,
+            { role: 'user' as const, content: userContent },
+            { role: 'assistant' as const, content: pmOutput },
+          ];
+          researchOutput = await streamOllamaAgent(getResearchPrompt(pmOutput, depth), researchMessages);
+          researchOutput.split('').forEach(char => {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text: char }, agent: 'research' })}\n\n`)
+            );
+          });
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_complete', agent: 'research' })}\n\n`));
+
+          if (researchOutput.includes('BLOCKED:')) {
+            const reason = researchOutput.match(/BLOCKED:\s*(.+?)(?:\n|$)/)?.[1] || 'Gate check failed';
+            blockedAt = 'research';
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'agent_blocked', agent: 'research', reason })}\n\n`)
+            );
+          } else {
+            // Designer Agent
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_start', agent: 'designer' })}\n\n`));
+            const designerMessages = [
+              ...baseMessages,
+              { role: 'user' as const, content: userContent },
+              { role: 'assistant' as const, content: pmOutput },
+              { role: 'user' as const, content: 'Continue with research analysis' },
+              { role: 'assistant' as const, content: researchOutput },
+            ];
+            designerOutput = await streamOllamaAgent(getDesignerPrompt(pmOutput, researchOutput, depth), designerMessages);
+            designerOutput.split('').forEach(char => {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'content_block_delta', delta: { text: char }, agent: 'designer' })}\n\n`)
+              );
+            });
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'agent_complete', agent: 'designer' })}\n\n`));
+
+            if (designerOutput.includes('BLOCKED:')) {
+              const reason = designerOutput.match(/BLOCKED:\s*(.+?)(?:\n|$)/)?.[1] || 'Gate check failed';
+              blockedAt = 'designer';
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'agent_blocked', agent: 'designer', reason })}\n\n`)
+              );
+            }
+          }
+        }
+
+        // Persist all messages
+        await persistAllMessages(
+          conversationId,
+          userContent,
+          pmOutput,
+          researchOutput,
+          designerOutput,
+          sequence,
+          attachment,
+          blockedAt,
+          depth
+        );
+
+        // Send completion signal
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      } catch (error) {
+        console.error('Ollama handoff pipeline error:', error);
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(readableStream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    },
+  });
+}
+
+// Helper function to persist all messages (user + 3 agents) to database
+async function persistAllMessages(
+  conversationId: string,
+  userContent: string,
+  pmContent: string,
+  researchContent: string,
+  designerContent: string,
+  sequence: number,
+  attachment?: { name: string; type: string; data: string },
+  blockedAt?: 'pm' | 'research' | 'designer',
+  depth: Depth = 'balanced'
 ) {
   try {
-    // Insert user message with attachment metadata if present
+    const messagesToInsert = [];
+
+    // User message
     const userMetadata = attachment ? { attachment_name: attachment.name } : undefined;
-    const { error: userMsgError } = await supabase
-      .from('chat_messages')
-      .insert([{
+    messagesToInsert.push({
+      conversation_id: conversationId,
+      role: 'user',
+      content: userContent,
+      sequence,
+      metadata: userMetadata,
+    });
+
+    // PM message
+    if (pmContent) {
+      messagesToInsert.push({
         conversation_id: conversationId,
-        role: 'user',
-        content: userContent,
-        sequence,
-        metadata: userMetadata,
-      }]);
+        role: 'pm',
+        content: pmContent,
+        sequence: sequence + 1,
+        metadata: { depth, blocked: blockedAt === 'pm' },
+      });
+    }
 
-    if (userMsgError) throw userMsgError;
-
-    // Insert research response
-    const { error: researchMsgError } = await supabase
-      .from('chat_messages')
-      .insert([{
+    // Research message (only if not blocked at PM)
+    if (researchContent && blockedAt !== 'pm') {
+      messagesToInsert.push({
         conversation_id: conversationId,
         role: 'research',
         content: researchContent,
-        sequence: sequence + 1,
-      }]);
+        sequence: sequence + 2,
+        metadata: { depth, blocked: blockedAt === 'research' },
+      });
+    }
 
-    if (researchMsgError) throw researchMsgError;
+    // Designer message (only if not blocked at PM or Research)
+    if (designerContent && !['pm', 'research'].includes(blockedAt || '')) {
+      messagesToInsert.push({
+        conversation_id: conversationId,
+        role: 'designer',
+        content: designerContent,
+        sequence: sequence + 3,
+        metadata: { depth },
+      });
+    }
+
+    const { error } = await supabase
+      .from('chat_messages')
+      .insert(messagesToInsert);
+
+    if (error) throw error;
   } catch (error) {
     console.error('Error persisting messages:', error);
   }

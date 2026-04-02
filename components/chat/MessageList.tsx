@@ -19,6 +19,7 @@ interface MessageListProps {
   onSendSuggestion?: (suggestion: string) => void;
   isRetrying?: boolean;
   hasConversation?: boolean;
+  currentPhase?: 'pm' | 'research' | 'designer';
 }
 
 /**
@@ -55,6 +56,21 @@ function parseSuggestions(content: string): { visibleContent: string; suggestion
   return { visibleContent, suggestions };
 }
 
+const AGENT_CONFIG: Record<string, { label: string; labelClass: string }> = {
+  pm: {
+    label: 'Product',
+    labelClass: 'text-violet-300/70',
+  },
+  research: {
+    label: 'Research',
+    labelClass: 'text-sky-300/70',
+  },
+  designer: {
+    label: 'Design',
+    labelClass: 'text-emerald-300/70',
+  },
+};
+
 export function MessageList({
   messages,
   isLoading,
@@ -63,6 +79,7 @@ export function MessageList({
   onSendSuggestion,
   isRetrying = false,
   hasConversation = true,
+  currentPhase,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -121,8 +138,15 @@ export function MessageList({
                 </div>
               ) : (
                 <div>
-                  <div className={`bg-white text-black rounded-2xl px-4 text-sm ${isLastAssistantMessage && isLoading && !visibleContent ? 'py-3' : 'py-2'}`}>
-                    {isLastAssistantMessage && isLoading && !visibleContent ? (
+                  {/* Agent label for non-user messages */}
+                  {AGENT_CONFIG[message.role] && (
+                    <span className={`text-[10px] font-medium tracking-wide uppercase mb-1 pl-1 ${AGENT_CONFIG[message.role].labelClass}`}>
+                      {AGENT_CONFIG[message.role].label}
+                    </span>
+                  )}
+
+                  <div className={`bg-white text-black rounded-2xl px-4 text-sm ${isLoading && message.role === currentPhase && !visibleContent ? 'py-3' : 'py-2'}`}>
+                    {isLoading && message.role === currentPhase && !visibleContent ? (
                       <ThinkingIndicator />
                     ) : (
                       <ReactMarkdown

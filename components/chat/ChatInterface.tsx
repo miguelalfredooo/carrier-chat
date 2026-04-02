@@ -30,6 +30,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [lastMessageContent, setLastMessageContent] = useState<string>('');
+  const [depth, setDepth] = useState<'quick' | 'balanced' | 'in-depth'>('balanced');
 
 
   // Load conversations on mount
@@ -147,7 +148,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
     // Save content for potential retry
     setLastMessageContent(content);
 
-    // Fix 1 & 3: Add user message and empty assistant placeholder to state
+    // Fix 1 & 3: Add user message and three empty agent placeholders to state
     const userMessage: ChatMessage = {
       id: `temp-user-${Date.now()}`,
       conversation_id: convId as string,
@@ -158,23 +159,42 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
       metadata: attachment ? { attachment_name: attachment.name } : undefined,
     };
 
-    // Empty assistant message that will be streamed to
-    const assistantMessage: ChatMessage = {
-      id: `temp-assistant-${Date.now()}`,
+    // Three empty agent messages that will be streamed to sequentially
+    const pmMessage: ChatMessage = {
+      id: `temp-pm-${Date.now()}`,
+      conversation_id: convId as string,
+      role: 'pm',
+      content: '',
+      created_at: new Date().toISOString(),
+      sequence: messages.length + 1,
+    };
+
+    const researchMessage: ChatMessage = {
+      id: `temp-research-${Date.now() + 1}`,
       conversation_id: convId as string,
       role: 'research',
       content: '',
       created_at: new Date().toISOString(),
-      sequence: messages.length + 1,
-      metadata: {
-        confidence: 'n/a',
-      },
+      sequence: messages.length + 2,
     };
 
-    // Add both messages immediately - user stays visible, assistant waits for stream
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    const designerMessage: ChatMessage = {
+      id: `temp-designer-${Date.now() + 2}`,
+      conversation_id: convId as string,
+      role: 'designer',
+      content: '',
+      created_at: new Date().toISOString(),
+      sequence: messages.length + 3,
+    };
+
+    // Add all messages immediately - user and three agents wait for stream
+    setMessages((prev) => [...prev, userMessage, pmMessage, researchMessage, designerMessage]);
 
     try {
+      // Local variable to track which agent's placeholder to stream to
+      // Must be a let, not useState, so it's synchronously updated when agent_start events arrive
+      let activeAgentId: string = pmMessage.id;
+
       // POST message to API with streaming
       const response = await authenticatedFetch('/api/chat/messages', {
         method: 'POST',
@@ -184,6 +204,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
           role: 'user',
           content,
           attachment,
+          depth,
         }),
       });
 
@@ -191,7 +212,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
         throw new Error(`Failed to send message: ${response.statusText}`);
       }
 
-      // Fix 3: Stream response into the assistant message bubble
+      // Fix 3: Stream response into agent message bubbles
       if (response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -213,12 +234,29 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
 
               try {
                 const data = JSON.parse(dataStr);
+
+                // Handle agent start events
+                if (data.type === 'agent_start') {
+                  const agent = data.agent as 'pm' | 'research' | 'designer';
+                  setPhase(agent);
+                  activeAgentId = agent === 'pm' ? pmMessage.id
+                    : agent === 'research' ? researchMessage.id
+                    : designerMessage.id;
+                }
+
+                // Handle agent blocked events
+                if (data.type === 'agent_blocked') {
+                  setBlockedAt(data.agent);
+                  setStatus('blocked');
+                }
+
+                // Handle content chunks
                 if (data.type === 'content_block_delta' && data.delta?.text) {
                   const chunk = data.delta.text;
-                  // Append each chunk to assistant message in real-time
+                  // Append each chunk to the active agent message in real-time
                   setMessages((prev) =>
                     prev.map((msg) =>
-                      msg.id === assistantMessage.id
+                      msg.id === activeAgentId
                         ? { ...msg, content: msg.content + chunk }
                         : msg
                     )
@@ -231,8 +269,10 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
           }
         }
 
-        setStatus('complete');
-        setBlockedAt(undefined);
+        // Only set complete status if not blocked
+        if (blockedAt === undefined) {
+          setStatus('complete');
+        }
 
         // CRITICAL: Do NOT call loadMessages() or setCurrentConversationId() here
         // The messages are already correct in local state from optimistic update + streaming.
@@ -385,6 +425,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
             onSendSuggestion={(suggestion) => sendMessage(suggestion)}
             isRetrying={isRetrying}
             hasConversation={!!currentConversationId}
+            currentPhase={phase as 'pm' | 'research' | 'designer' | undefined}
           />
 
           {/* Project Buckets — above input, accumulates as conversation progresses */}
@@ -399,6 +440,8 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
             <ChatInput
               onSend={sendMessage}
               isLoading={isLoading}
+              depth={depth}
+              onDepthChange={setDepth}
             />
           </div>
         </div>
