@@ -106,15 +106,21 @@ export function ChatInput({
         <div className="text-sm text-red-600">{error}</div>
       )}
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => fileInputRef.current?.click()}
+      <div className="relative">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a design question..."
           disabled={isLoading}
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-gray-50 text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-400 transition-colors"
-          title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
-        >
-          <Paperclip size={16} />
-        </button>
+          rows={1}
+          className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 pr-20 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
+          style={{
+            minHeight: '40px',
+            maxHeight: '120px',
+            overflowY: 'auto',
+          }}
+        />
 
         <input
           ref={fileInputRef}
@@ -125,29 +131,25 @@ export function ChatInput({
           aria-label="Attach image"
         />
 
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a design question..."
-          disabled={isLoading}
-          rows={1}
-          className="flex-1 rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-sm outline-none placeholder:text-gray-500 disabled:bg-gray-100 disabled:text-gray-500 focus:bg-white focus:border-gray-400 focus:ring-1 focus:ring-gray-200 resize-none"
-          style={{
-            minHeight: '40px',
-            maxHeight: '120px',
-            overflowY: 'auto',
-          }}
-        />
+        {/* Icons at bottom right inside input */}
+        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Attach an image (JPEG, PNG, GIF, WebP - max 5MB)"
+          >
+            <Paperclip size={16} />
+          </button>
 
-        <Button
-          onClick={handleSend}
-          disabled={isLoading || !input.trim()}
-          size="sm"
-          className="gap-2 self-end"
-        >
-          <Send size={16} />
-        </Button>
+          <button
+            onClick={handleSend}
+            disabled={isLoading || !input.trim()}
+            className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Send size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
