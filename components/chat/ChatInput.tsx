@@ -114,7 +114,7 @@ export function ChatInput({
           placeholder="Ask a design question..."
           disabled={isLoading}
           rows={1}
-          className="w-full rounded-t-lg border border-gray-600 bg-gray-800 pl-6 pr-4 pt-4 text-sm text-white outline-none placeholder:text-gray-400 disabled:bg-gray-700 disabled:text-gray-500 focus:bg-gray-750 focus:border-gray-500 focus:ring-1 focus:ring-gray-600 resize-none"
+          className="w-full rounded-t-lg border border-gray-600 bg-gray-800 pl-4 pr-4 pt-4 text-sm text-white outline-none placeholder:text-gray-400 disabled:bg-gray-700 disabled:text-gray-500 focus:bg-gray-750 focus:border-gray-500 focus:ring-1 focus:ring-gray-600 resize-none"
           style={{
             minHeight: '40px',
             maxHeight: '120px',
