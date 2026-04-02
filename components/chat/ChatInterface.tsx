@@ -395,7 +395,7 @@ export function ChatInterface({ conversationId = null }: ChatInterfaceProps) {
           />
 
           {/* Chat Input */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 -mx-4 -mb-4">
             <ChatInput
               onSend={sendMessage}
               isLoading={isLoading}
