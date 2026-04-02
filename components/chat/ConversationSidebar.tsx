@@ -88,6 +88,11 @@ export function ConversationSidebar({
         </button>
       </div>
 
+      {/* Conversations Header */}
+      <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200">
+        <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Conversations</h3>
+      </div>
+
       {/* Search */}
       <div className="flex-shrink-0 px-3 py-2">
         <div className="relative">
@@ -100,11 +105,6 @@ export function ConversationSidebar({
             className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300"
           />
         </div>
-      </div>
-
-      {/* Conversations Header */}
-      <div className="flex-shrink-0 px-4 py-3 mt-2 border-t border-gray-200">
-        <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Conversations</h3>
       </div>
 
       {/* Conversation list */}
