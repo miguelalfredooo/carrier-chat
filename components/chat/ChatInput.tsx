@@ -88,7 +88,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="flex flex-col gap-3 bg-white p-4">
+    <div className="flex flex-col gap-3 bg-white p-0">
       {attachment && (
         <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1 w-fit">
           <span className="text-sm text-gray-700">📎 {attachment.name}</span>
